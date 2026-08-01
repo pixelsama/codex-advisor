@@ -21,16 +21,75 @@ Codex.
 - Python 3.10+
 - Optional: OpenCodex for live `subagentModels` discovery
 
-## Install as a local Codex plugin
+## Install in Codex
 
-Clone this repository into a local plugin directory, then add the plugin to
-your personal Codex marketplace entry:
+The following steps use Codex's default personal marketplace. They work on
+macOS, Linux, and Windows through Git Bash or WSL. Keep the clone at
+`~/plugins/codex-advisor`: the marketplace entry below intentionally refers to
+that standard location.
+
+### 1. Clone the plugin
 
 ```bash
+mkdir -p ~/plugins
 git clone https://github.com/pixelsama/codex-advisor.git ~/plugins/codex-advisor
 ```
 
-The marketplace entry should point to the cloned directory:
+If you already cloned it, update it instead:
+
+```bash
+git -C ~/plugins/codex-advisor pull --ff-only
+```
+
+### 2. Register it in your personal marketplace
+
+#### 推荐：自动注册
+
+This command creates the personal marketplace if needed and updates only the
+`codex-advisor` entry. Existing plugin entries are preserved:
+
+```bash
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+marketplace = Path.home() / ".agents" / "plugins" / "marketplace.json"
+marketplace.parent.mkdir(parents=True, exist_ok=True)
+
+if marketplace.exists():
+    data = json.loads(marketplace.read_text(encoding="utf-8"))
+else:
+    data = {
+        "name": "personal",
+        "interface": {"displayName": "Personal"},
+        "plugins": [],
+    }
+
+data.setdefault("name", "personal")
+data.setdefault("interface", {"displayName": "Personal"})
+plugins = data.setdefault("plugins", [])
+plugins[:] = [item for item in plugins if item.get("name") != "codex-advisor"]
+plugins.append({
+    "name": "codex-advisor",
+    "source": {"source": "local", "path": "./plugins/codex-advisor"},
+    "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL",
+    },
+    "category": "Productivity",
+})
+marketplace.write_text(
+    json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+print(f"Updated {marketplace}")
+PY
+```
+
+#### 手动注册
+
+If you prefer to edit the file yourself, add the following object to its
+`plugins` array. Do not delete your existing plugin entries:
 
 ```json
 {
@@ -44,11 +103,46 @@ The marketplace entry should point to the cloned directory:
 }
 ```
 
-Then install it from the marketplace:
+For a new personal marketplace, create
+`~/.agents/plugins/marketplace.json` with this complete content:
+
+```json
+{
+  "name": "personal",
+  "interface": { "displayName": "Personal" },
+  "plugins": [
+    {
+      "name": "codex-advisor",
+      "source": { "source": "local", "path": "./plugins/codex-advisor" },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
+```
+
+### 3. Install and verify it
 
 ```bash
 codex plugin add codex-advisor@personal
+codex plugin list | grep codex-advisor
 ```
+
+The plugin should show as `installed, enabled`. Start a new Codex task after
+installing or updating so it loads the current plugin version.
+
+### 4. Configure Advisor
+
+```bash
+codex-advisor open
+```
+
+The command opens the local settings page. Select the Advisor mode and model
+priority, then click **保存配置** in the top-right action area. The page shows
+a confirmation banner after the configuration is written.
 
 When developing locally, reinstall after source changes so Codex picks up the
 new plugin cache version.
