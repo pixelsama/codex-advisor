@@ -1,6 +1,6 @@
 {
   "name": "codex-advisor",
-  "version": "0.1.0+codex.20260801063434",
+  "version": "0.1.0+codex.20260801070151",
   "description": "A configurable strategic Advisor built on Codex subagents.",
   "author": {
     "name": "pixelsama"
