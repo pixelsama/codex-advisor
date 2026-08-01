@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Codex Advisor</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div
+      id="save-banner"
+      class="save-banner"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      hidden
+    >
+      <span id="save-banner-icon" class="save-banner-icon" aria-hidden="true">✓</span>
+      <div class="save-banner-copy">
+        <strong id="save-banner-title">配置已保存</strong>
+        <span id="save-banner-message">新任务会从下一次用户消息开始使用这份配置。</span>
+      </div>
+      <button id="save-banner-close" class="save-banner-close" type="button" aria-label="关闭保存提示">×</button>
+    </div>
+    <main class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">CODEX ADVISOR</p>
+          <h1>给 Codex 配一个有优先级的战略顾问</h1>
+          <p class="subtitle">
+            模型直接读取当前 subagent 列表。Advisor 失败时会按你设定的重试次数和顺序降级。
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="save" class="primary" type="button">保存配置</button>
+          <label class="switch-row">
+            <input id="enabled" type="checkbox">
+            <span class="switch" aria-hidden="true"></span>
+            <span id="enabled-label">关闭</span>
+          </label>
+        </div>
+      </header>
+
+      <section class="card settings-grid">
+        <label>
+          <span>运行模式</span>
+          <select id="mode">
+            <option value="auto">自动：关键节点咨询</option>
+            <option value="manual">手动：只在 $advisor ask 时咨询</option>
+          </select>
+        </label>
+        <label>
+          <span>Advisor 推理强度</span>
+          <select id="reasoning-effort">
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+            <option value="xhigh">xhigh</option>
+            <option value="low">low</option>
+          </select>
+        </label>
+        <label>
+          <span>全部模型失败后</span>
+          <select id="on-exhausted">
+            <option value="continue">继续主任务并说明 Advisor 不可用</option>
+            <option value="block">暂停关键决策并询问我</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="columns">
+        <article class="card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">PRIORITY</p>
+              <h2>Advisor 优先级</h2>
+            </div>
+            <span id="selected-count" class="count">0</span>
+          </div>
+          <p class="hint">
+            从上到下尝试。“额外重试 1 次”代表该模型总共最多尝试 2 次。
+          </p>
+          <div id="selected-models" class="model-list"></div>
+        </article>
+
+        <article class="card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">AVAILABLE</p>
+              <h2>当前 subagent 模型</h2>
+            </div>
+            <button id="refresh" class="ghost" type="button">重新读取</button>
+          </div>
+          <p id="model-source" class="hint">正在读取模型来源…</p>
+          <div id="available-models" class="model-list"></div>
+        </article>
+      </section>
+
+      <footer class="actions">
+        <div id="message" role="status" aria-live="polite"></div>
+        <button id="shutdown" class="ghost" type="button">关闭配置服务</button>
+      </footer>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

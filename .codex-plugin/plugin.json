@@ -1,0 +1,23 @@
+{
+  "name": "codex-advisor",
+  "version": "0.1.0+codex.20260801062421",
+  "description": "A configurable strategic Advisor built on Codex subagents.",
+  "author": {
+    "name": "pixelsama"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Advisor",
+    "shortDescription": "Configure ordered Advisor subagents with retries.",
+    "longDescription": "Reads the live Codex subagent model list, lets you configure an ordered Advisor fallback chain in a local web UI, and injects the selected strategic review workflow into Codex.",
+    "developerName": "pixelsama",
+    "category": "Productivity",
+    "capabilities": [
+      "Subagent model discovery",
+      "Ordered Advisor fallback",
+      "Per-model retries",
+      "Local settings UI"
+    ],
+    "defaultPrompt": "Use $advisor to open settings or request a strategic second opinion."
+  }
+}

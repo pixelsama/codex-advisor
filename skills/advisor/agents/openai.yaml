@@ -1,0 +1,6 @@
+interface:
+  display_name: "Codex Advisor"
+  short_description: "配置并调用有优先级和重试的 Advisor 子代理"
+  default_prompt: "Use $advisor to open settings, toggle Advisor, inspect status, or request a strategic second opinion."
+policy:
+  allow_implicit_invocation: true
