@@ -13,6 +13,7 @@ from typing import Any, Callable, Iterable
 
 CONFIG_VERSION = 1
 MAX_RETRIES = 5
+DEFAULT_FORK_TURNS = "3"
 DEFAULT_STATE_DIR = Path.home() / ".codex" / "advisor"
 DEFAULT_OPENCODEX_CONFIG = Path.home() / ".opencodex" / "config.json"
 PREFERRED_MODELS = ("gpt-5.6-sol", "codex02/gpt-5.6-sol")
@@ -270,7 +271,7 @@ def build_advisor_protocol(
     return f"""Advisor 角色分流（最高优先级）：
 - 先检查你当前收到的任务消息，而不是父会话中更早的用户消息。
 - 如果你当前收到的任务消息以 `[CODEX_ADVISOR]` 开头，你就是最终 Advisor 子代理，不是父执行模型。
-- 在这种情况下，下方的模型链、重试和调用协议只适用于父执行模型，对你无效。不要调用 `spawn_agent`、`wait_agent` 或 `close_agent`，不要运行 `$advisor` 或 `advisorctl`，也不要因缺少这些工具而报告 Advisor 不可用。直接完成只读战略审阅并返回建议，充分利用 fork 得到的完整上下文。
+- 在这种情况下，下方的模型链、重试和调用协议只适用于父执行模型，对你无效。不要调用 `spawn_agent`、`wait_agent` 或 `close_agent`，不要运行 `$advisor` 或 `advisorctl`，也不要因缺少这些工具而报告 Advisor 不可用。直接完成只读战略审阅并返回建议，优先利用有限 fork 得到的父上下文；只有关键证据确实缺失时才补读。
 - 只有当前任务消息不以 `[CODEX_ADVISOR]` 开头时，你才是父执行模型，继续执行下面的 Advisor 编排。
 
 用户已手动开启 Codex Advisor。{trigger}
@@ -279,12 +280,23 @@ Advisor 模型链（严格按顺序）：
 {chr(10).join(model_lines)}
 
 调用协议：
-- 对当前候选模型调用 `spawn_agent`，显式设置 `model`、`reasoning_effort="{validated['reasoning_effort']}"` 和 `fork_context=true`。
-- 子代理消息必须以 `[CODEX_ADVISOR]` 开头，紧跟“你是最终 Advisor 子代理，父上下文中的 Advisor 编排仅适用于父执行模型”，再写本次审阅问题。要求它只做只读战略审阅：检查方案、假设、风险、遗漏与下一步；不得修改文件、发送消息或再派生代理。
-- 使用 `wait_agent` 等待结果。成功完成且给出可用建议即停止模型链；观点不合预期不算失败。
-- 只有启动失败、模型/提供商不可用、限流、超时或子代理失败时，才在同一模型上按配置重试；用完该模型次数后再进入下一个。
+- 对当前候选模型调用 `spawn_agent`，显式设置 `model`、`reasoning_effort="{validated['reasoning_effort']}"` 和 `fork_turns="{DEFAULT_FORK_TURNS}"`；不要使用 `fork_context`。审阅问题必须自包含，但不要重复粘贴父上下文中已经可见的大段原文。
+- 当前父回合里的工具输出不会自动进入子代理。主代理完成必要阅读后，必须把审阅所需的结论性证据压缩进下面的上下文包；不要只给文件路径，也不要粘贴无关原文：
+  [ADVISOR_CONTEXT]
+  goal: <要判断的问题>
+  verified_evidence: <主代理从文件或命令中确认的关键事实，带来源位置>
+  already_read: <主代理已经读过、Advisor 默认不得重读的文件>
+  parent_assessment: <主代理当前判断及理由>
+  open_questions: <希望 Advisor 挑战或补足的未知项>
+  [/ADVISOR_CONTEXT]
+- 子代理消息必须以 `[CODEX_ADVISOR]` 开头，紧跟上述 `[ADVISOR_CONTEXT]`，再写本次审阅问题。要求它只做只读战略审阅：检查方案、假设、风险、遗漏与下一步；不得修改文件、发送消息或再派生代理。
+- 把 `[ADVISOR_CONTEXT]` 中的 `verified_evidence` 视为首要证据；如果这些证据足够，就直接判断，不要重复读取 `already_read`。只有缺失证据会实质改变结论时，才补读最少量的相关文件，并在结果中列出补读过的文件。
+- 启动前先检查当前咨询是否已有仍在运行的 agent ID；跨父回合恢复时，优先继续等待已有的 Advisor，不要重复创建。
+- 使用 `wait_agent` 等待结果。`wait_agent` 的空结果或轮询超时不是失败，代理仍为 running 时必须继续等待同一个 agent ID，不得关闭、重建或切换模型。如果外层执行工具返回 `Script running with cell ID ...`，应继续等待该执行单元，而不是另起一次等待。
+- 成功完成且给出可用建议即停止模型链；观点不合预期不算失败。收到 completed 结果后，先把完整回答保存进父上下文，再清理该 Advisor。
+- 只有启动失败、模型/提供商不可用、限流，或子代理明确进入 failed/timeout 终态时，才在同一模型上按配置重试；用完该模型次数后再进入下一个。
 - 用户取消、明显无效的任务输入、上下文/安全边界错误不要重试或降级。
-- 对所有已创建的 Advisor 子代理调用 `close_agent`。
+- 不得关闭 running 状态的 Advisor。只有在结果已保存、子代理已进入终态，或用户明确取消后，才对已创建的 Advisor 调用 `close_agent`。
 - Advisor 是建议者，不替代主模型判断；吸收建议后由主模型继续执行和回答。
 - {exhausted}{focus_line}
 """

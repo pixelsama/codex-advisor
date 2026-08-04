@@ -13,7 +13,7 @@ Before routing any request, inspect the current assigned task message:
 
 - If it begins with `[CODEX_ADVISOR]`, this agent is already the final leaf Advisor. The inherited automatic Advisor protocol belongs only to the parent executor.
 - In that leaf role, do not run `codex-advisor`, `$advisor`, `spawn_agent`, `wait_agent`, or `close_agent`; do not create another Advisor and do not report Advisor unavailable because those tools are absent.
-- Directly use the forked conversation and repository context to perform the requested read-only strategic review, then return the advice to the parent.
+- Use the required `[ADVISOR_CONTEXT]` packet as the primary evidence for the requested read-only strategic review; the bounded fork provides recent intent but does not carry the parent agent's current-turn tool output. If the packet contains the relevant findings, answer without re-reading `already_read`. Read only the smallest missing evidence that could materially change the conclusion.
 - Only a parent/root agent whose current task does not begin with the marker may continue to the routing and orchestration sections below.
 
 ## Route the request
@@ -30,11 +30,13 @@ If `codex-advisor` is not on `PATH`, resolve this `SKILL.md` to its plugin root 
 When invoking an Advisor:
 
 1. Treat the CLI-emitted model order and retry counts as authoritative.
-2. Use `spawn_agent`, `wait_agent`, and `close_agent` as described by the protocol.
-3. Prefix the Advisor subagent prompt with `[CODEX_ADVISOR]`; the plugin Hook recognizes only this marker.
-4. Keep the Advisor read-only. It reviews strategy, assumptions, risks, omissions, and next steps; the main agent remains responsible for execution.
-5. Do not reinterpret a completed but disagreeable answer as a failure. Retry only tool-level or provider/model failures listed in the protocol.
-6. Never alter ordinary subagent calls that do not carry the marker.
+2. Use `spawn_agent` with the protocol's bounded `fork_turns`, selected model, and reasoning effort. Do not restore the legacy `fork_context` field.
+3. Prefix the Advisor subagent prompt with `[CODEX_ADVISOR]`, then include a complete `[ADVISOR_CONTEXT]` packet with `goal`, `verified_evidence`, `already_read`, `parent_assessment`, and `open_questions`. The guard denies incomplete Advisor handoffs.
+4. Keep the Advisor read-only and evidence-on-demand. It reviews strategy, assumptions, risks, omissions, and next steps; the main agent remains responsible for execution.
+5. A `wait_agent` polling timeout or empty snapshot is non-terminal. Continue waiting on the same agent ID; never close or replace a running Advisor because a poll returned no result.
+6. Capture a completed Advisor answer in the parent context before cleanup. Do not reinterpret a completed but disagreeable answer as a failure.
+7. On a resumed parent turn, continue any existing Advisor consultation before creating a replacement.
+8. Never alter ordinary subagent calls that do not carry the marker.
 
 ## Automatic mode
 

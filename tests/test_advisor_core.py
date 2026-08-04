@@ -161,9 +161,64 @@ class ProtocolTests(unittest.TestCase):
         )
         self.assertIn("最多 2 次", protocol)
         self.assertIn("最多 3 次", protocol)
-        self.assertIn("fork_context=true", protocol)
+        self.assertIn('fork_turns="3"', protocol)
+        self.assertNotIn("fork_context=true", protocol)
         self.assertIn("[CODEX_ADVISOR]", protocol)
         self.assertIn("检查迁移风险", protocol)
+
+    def test_protocol_prefers_context_packet_evidence_before_supplemental_reads(self):
+        config = {
+            "version": 1,
+            "enabled": True,
+            "mode": "auto",
+            "reasoning_effort": "high",
+            "on_exhausted": "continue",
+            "models": [{"id": "gpt-5.6-sol", "retries": 1}],
+        }
+
+        protocol = build_advisor_protocol(config)
+
+        self.assertIn("`verified_evidence` 视为首要证据", protocol)
+        self.assertIn("不要重复读取", protocol)
+        self.assertIn("缺失证据会实质改变结论", protocol)
+        self.assertIn("补读过的文件", protocol)
+
+    def test_protocol_requires_a_context_packet_for_current_turn_evidence(self):
+        config = {
+            "version": 1,
+            "enabled": True,
+            "mode": "auto",
+            "reasoning_effort": "high",
+            "on_exhausted": "continue",
+            "models": [{"id": "gpt-5.6-sol", "retries": 1}],
+        }
+
+        protocol = build_advisor_protocol(config)
+
+        self.assertIn("当前父回合里的工具输出不会自动进入子代理", protocol)
+        self.assertIn("[ADVISOR_CONTEXT]", protocol)
+        self.assertIn("verified_evidence", protocol)
+        self.assertIn("already_read", protocol)
+        self.assertIn("parent_assessment", protocol)
+        self.assertIn("open_questions", protocol)
+
+    def test_protocol_treats_wait_poll_timeout_as_non_terminal(self):
+        config = {
+            "version": 1,
+            "enabled": True,
+            "mode": "auto",
+            "reasoning_effort": "high",
+            "on_exhausted": "continue",
+            "models": [{"id": "gpt-5.6-sol", "retries": 1}],
+        }
+
+        protocol = build_advisor_protocol(config)
+
+        self.assertIn("轮询超时不是失败", protocol)
+        self.assertIn("继续等待同一个 agent ID", protocol)
+        self.assertIn("不得关闭、重建或切换模型", protocol)
+        self.assertIn("先把完整回答保存进父上下文，再清理", protocol)
+        self.assertIn("优先继续等待已有的 Advisor", protocol)
 
     def test_protocol_routes_a_forked_advisor_to_leaf_review(self):
         config = {

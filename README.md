@@ -4,8 +4,9 @@ Codex Advisor 是一个运行在 Codex 全局环境中的可配置 Advisor 插�
 `spawn_agent` 创建一个只读的战略审阅子代理，在关键方案、连续受阻或重大交付前提供第二意见。
 
 它支持手动或自动触发 Advisor，并允许按优先级配置多个模型；当前模型不可用时，可以按该模型的
-重试次数重试，仍然失败后再切换到下一个模型。Advisor 使用 `fork_context=true`，因此可以直接看到
-父任务的完整上下文，同时通过角色提示词阻止 Advisor 再递归创建 Advisor。
+重试次数重试，仍然失败后再切换到下一个模型。Advisor 使用有限的 `fork_turns="3"` 保留父任务最近的
+意图，并由主代理把当前回合读到的关键证据压缩成 `[ADVISOR_CONTEXT]` 显式交给 Advisor；证据不足时
+才按需补读，同时通过角色提示词阻止 Advisor 再递归创建 Advisor。
 
 ## 为什么推荐搭配 OpenCodex
 
@@ -49,7 +50,11 @@ OpenCodex，因为它可以更方便地添加、路由和切换不同 provider �
 - 自定义 Advisor 模型优先级
 - 每个模型独立配置额外重试次数
 - 当前模型失败后按优先级切换到下一个模型
-- 通过 `fork_context=true` 继承父任务的完整上下文
+- 通过有限 `fork_turns="3"` 保留最近意图，同时支持指定 Advisor 模型和推理强度
+- 用结构化 `[ADVISOR_CONTEXT]` 传递主代理当前回合已经读到的证据
+- 上下文包证据足够时直接回答，只有关键证据缺失时才最小化补读
+- Hook 拒绝缺少必要字段的 Advisor 调用，避免无上下文重扫仓库
+- 等待轮询超时保持原 Advisor 运行，不会误关闭或重复创建
 - 只对带 `[CODEX_ADVISOR]` 标记的子代理启用最终 Advisor 角色提示
 - 防止 Advisor 把自己当成父执行模型，递归创建下一层 Advisor
 - 本机 localhost 配置网页
@@ -194,9 +199,13 @@ $advisor ask 请审查当前方案的风险、遗漏和下一步
 网页中的模型从上到下就是 Advisor 的调用顺序。对每个模型可以单独设置“额外重试次数”：
 
 1. 先尝试当前模型
-2. 如果是启动失败、模型/提供商不可用、限流、超时或子代理失败，则按配置重试
+2. 如果是启动失败、模型/提供商不可用、限流，或子代理明确进入失败/超时终态，则按配置重试
 3. 重试次数用完后，切换到下一个模型
 4. 某个模型给出了正常但不符合预期的建议，不会因此当成调用失败
+
+`wait_agent` 的单次轮询超时或空结果不是失败。父代理必须继续等待同一个 agent ID，不能关闭仍处于
+running 状态的 Advisor，也不能因此重复创建。收到 completed 结果后，应先把完整回答保存在父上下文，
+再清理对应 Advisor。
 
 例如：
 
@@ -205,10 +214,28 @@ $advisor ask 请审查当前方案的风险、遗漏和下一步
 2. codex02/gpt-5.6-sol    额外重试 1 次，最多 2 次
 ```
 
-### 完整上下文与递归保护
+### 上下文交接、按需补读与递归保护
 
-Advisor 调用固定使用 `fork_context=true`，这样 Advisor 可以直接利用父会话中的代码、讨论和上下文，
-减少重新读取和复述的成本。为了避免 Advisor 把自己误认为父执行模型，调用消息会带有
+Advisor 调用固定使用 `fork_turns="3"`，这样可以在显式选择 Advisor 模型与 reasoning effort 的同时，
+保留父任务最近的已完成对话。当前仍在执行的父回合中的工具输出不会自动进入子代理，因此主代理必须把
+审阅所需的结论性证据压缩进 `[ADVISOR_CONTEXT]`：
+
+```text
+[ADVISOR_CONTEXT]
+goal: 要判断的问题
+verified_evidence: 主代理从文件或命令中确认的关键事实与来源位置
+already_read: 主代理已经读过、Advisor 默认不得重读的文件
+parent_assessment: 主代理当前判断及理由
+open_questions: 希望 Advisor 挑战或补足的未知项
+[/ADVISOR_CONTEXT]
+```
+
+Hook 会拒绝缺少上下文包或必要字段的 Advisor 调用。Advisor 会先判断包内证据是否足够：足够时直接
+回答，不会重复读取 `already_read`；只有缺失证据可能实质改变结论时，才补读最少量的相关文件，并在
+结果中列出补读文件。
+
+审阅问题本身仍需自包含，但不需要重复粘贴 fork 中已经可见的大段原文。为了避免 Advisor 把自己误认为
+父执行模型，调用消息会带有
 `[CODEX_ADVISOR]` 标记和最终叶子角色提示：带标记的子代理只做只读审阅，不调用
 `spawn_agent`、`wait_agent`、`close_agent`，也不会再次创建 Advisor。
 
