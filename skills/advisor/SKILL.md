@@ -24,6 +24,7 @@ Always run `scripts/advisorctl.py` from the plugin that supplied this `SKILL.md`
 Append the subcommand for the request:
 
 - `$advisor`, `$advisor config`, `open`, `gui`, or settings: `open`.
+- `$advisor install-command` or an explicit request to create the Advisor terminal command on Windows: run `& "<absolute-plugin-root>\scripts\install-terminal-command.ps1"` in PowerShell using the root of this installed skill. The setup creates the current user's launcher and adds its directory to PATH when needed. In the same PowerShell invocation, check `codex-advisor status` after setup succeeds. Tell the user to open a new terminal to use the command.
 - Enable or disable: `on` or `off`.
 - Status or model discovery: `status` or `models`.
 - `$advisor ask [focus]` or an explicit request for a review: `protocol --focus "<focus>"`, then follow the emitted protocol.
