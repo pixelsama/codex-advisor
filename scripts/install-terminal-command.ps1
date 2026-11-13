@@ -15,10 +15,9 @@ $manifest = Get-Content -Raw -LiteralPath (Join-Path $pluginDirectory '.codex-pl
 if ($manifest.name -ne 'codex-advisor' -or $manifest.version -notmatch '^\d+\.\d+\.\d+$') {
     throw 'This installer requires a released Codex Advisor plugin.'
 }
-$relativeScript = 'plugins\cache\advisor-market\codex-advisor\{0}\scripts\advisorctl.py' -f $manifest.version
-$advisorScript = Join-Path $codexDirectory $relativeScript
-if (-not (Test-Path -LiteralPath $advisorScript -PathType Leaf)) {
-    throw "Install Codex Advisor $($manifest.version) from advisor-market first."
+$cache = Join-Path $codexDirectory 'plugins\cache\advisor-market\codex-advisor'
+if (-not (Test-Path -LiteralPath $cache -PathType Container)) {
+    throw 'Install codex-advisor@advisor-market in Codex first.'
 }
 
 & py -3 -c 'import sys; sys.exit(sys.version_info < (3, 10))'
@@ -28,33 +27,34 @@ if ($LASTEXITCODE -ne 0) {
 
 $binDirectory = Join-Path $env:USERPROFILE '.local\bin'
 $commandFile = Join-Path $binDirectory 'codex-advisor.cmd'
+$resolverFile = Join-Path $binDirectory 'codex-advisor-launcher.py'
+$resolverSource = Join-Path $PSScriptRoot 'terminal-launcher.py'
+if (-not (Test-Path -LiteralPath $resolverSource -PathType Leaf)) {
+    throw 'The terminal launcher is missing from this plugin package.'
+}
 $launcher = @'
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
-set "ADVISOR_CODEX_DIR=%CODEX_HOME%"
-if not defined ADVISOR_CODEX_DIR set "ADVISOR_CODEX_DIR=%USERPROFILE%\.codex"
-set "ADVISOR_SCRIPT=%ADVISOR_CODEX_DIR%\@ADVISOR_SCRIPT@"
-if not exist "%ADVISOR_SCRIPT%" (
-    echo The configured Advisor version is missing. Run the terminal-command setup for your installed version. 1>&2
-    exit /b 1
-)
-py -3 -X utf8 "%ADVISOR_SCRIPT%" %*
+py -3 -X utf8 "%~dp0codex-advisor-launcher.py" %*
 exit /b %ERRORLEVEL%
 '@
 $launcher = ($launcher -replace '\r?\n', "`r`n") + "`r`n"
-$launcher = $launcher.Replace('@ADVISOR_SCRIPT@', $relativeScript)
 
 New-Item -ItemType Directory -Path $binDirectory -Force | Out-Null
-if (Test-Path -LiteralPath $commandFile) {
-    if ((Get-Item -LiteralPath $commandFile).Attributes -band [IO.FileAttributes]::ReparsePoint) {
-        throw "Refusing to replace a linked file: $commandFile"
+foreach ($destination in $commandFile, $resolverFile) {
+    $existing = Get-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+    if ($existing -and ($existing.PSIsContainer -or ($existing.Attributes -band [IO.FileAttributes]::ReparsePoint))) {
+        throw "Refusing to replace a directory or linked file: $destination"
     }
+}
+if (Test-Path -LiteralPath $commandFile) {
     if ([IO.File]::ReadAllText($commandFile) -cne $launcher) {
         $backup = "$commandFile.$([DateTime]::Now.ToString('yyyyMMdd-HHmmss-fff')).bak"
         [IO.File]::Copy($commandFile, $backup, $false)
         Write-Output "Previous command backed up to $backup"
     }
 }
+Copy-Item -LiteralPath $resolverSource -Destination $resolverFile -Force
 [IO.File]::WriteAllText($commandFile, $launcher, [Text.Encoding]::ASCII)
 
 function Test-BinOnPath([string] $pathValue) {

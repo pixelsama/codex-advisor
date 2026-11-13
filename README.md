@@ -103,7 +103,7 @@ macOS/Linux 使用 `python3 scripts/advisorctl.py` 加同样的子命令。
 
 ### 在 Windows PowerShell 创建 `codex-advisor` 命令
 
-从 GitHub 市场安装 `codex-advisor@advisor-market` 的 `0.2.1` 或更新版本后，新开 Codex 对话并输入 `$advisor install-command`。
+从 GitHub 市场安装 `codex-advisor@advisor-market` 的 `0.2.2` 或更新版本后，新开 Codex 对话并输入 `$advisor install-command`。
 Codex 会运行已安装插件自带的 PowerShell 脚本。出现用户目录写入授权提示时，按界面完成授权。
 打开一个新的 PowerShell 窗口即可演示。
 
@@ -113,13 +113,13 @@ codex-advisor
 ```
 
 脚本会把命令写到 `%USERPROFILE%\.local\bin`，并在需要时将该目录加入当前用户的 PATH。
-如果已有旧启动脚本，会先在同一目录创建 `.bak` 备份。更新插件后再运行一次 `$advisor install-command`，把命令指向新版本。
+如果已有旧启动脚本，会先在同一目录创建 `.bak` 备份。命令每次运行时都会从 `advisor-market` 缓存选择最高的完整版本，之后升级插件可以继续使用同一个命令。
 `codex-advisor` 默认打开配置页，也可带上 `status`、`models`、`on` 或 `off`。
 
-也可以在 PowerShell 直接运行插件安装目录中的 `scripts\install-terminal-command.ps1`。例如使用默认 Codex 目录的 `0.2.1` 可以这样运行。
+也可以在 PowerShell 直接运行插件安装目录中的 `scripts\install-terminal-command.ps1`。例如使用默认 Codex 目录的 `0.2.2` 可以这样运行。
 
 ```powershell
-& "$env:USERPROFILE\.codex\plugins\cache\advisor-market\codex-advisor\0.2.1\scripts\install-terminal-command.ps1"
+& "$env:USERPROFILE\.codex\plugins\cache\advisor-market\codex-advisor\0.2.2\scripts\install-terminal-command.ps1"
 ```
 
 ### 手动模式
