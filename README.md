@@ -4,52 +4,28 @@ Codex Advisor 是一个运行在 Codex 全局环境中的可配置 Advisor 插�
 `spawn_agent` 创建一个只读的战略审阅子代理，在关键方案、连续受阻或重大交付前提供第二意见。
 
 它支持手动或自动触发 Advisor，并允许按优先级配置多个模型；当前模型不可用时，可以按该模型的
-重试次数重试，仍然失败后再切换到下一个模型。Advisor 使用 `fork_context=true`，因此可以直接看到
-父任务的完整上下文，同时通过角色提示词阻止 Advisor 再递归创建 Advisor。
+重试次数重试，仍然失败后再切换到下一个模型。顾问在当前会话中作为子代理运行，由主模型在任务中交接审阅所需背景。
 
-## 为什么推荐搭配 OpenCodex
+## 模型来源
 
-本插件最适合与 [OpenCodex](https://opencodex.me/) 一起使用。OpenCodex 可以统一管理 Codex 的
-provider、路由模型和 subagent 模型列表；本插件直接读取 OpenCodex 的配置，不需要你手动把模型名称
-抄到 Advisor 配置里。
+模型目录供 WebUI 选模型和推理档位，无需单独安装 Codex CLI 或 OpenCodex。
 
-相关链接：
+- **Codex 本机缓存**读取 `~/.codex/models_cache.json`，适合官方登录。目录是最近一次缓存的列表，Codex 会话负责验证模型能否启动。
+- **CC Switch 发布的目录**读取 `~/.codex/cc-switch-model-catalog.json`。直连已配置模型映射或使用聚合时，可以从这份目录选择。
+- **自定义 Codex 模型目录**接受模型目录文件的绝对路径，例如 OpenCodex 生成的 `opencodex-catalog.json`。文件名应为 `models.json`、`models_cache.json`、`model_catalog.json` 或以 `-catalog.json` 结尾。
+- **手动添加**随时可用。粘贴 Codex 模型选择器里的完整 ID，再选推理档位。手动添加不会向 Codex 注册模型。
 
-- [OpenCodex 项目主页](https://opencodex.me/)
-- [OpenCodex GitHub 仓库](https://github.com/lidge-jun/opencodex)
-- [OpenCodex 配置参考](https://opencodex.me/reference/configuration/)
-- [OpenCodex 的 Codex 集成说明](https://opencodex.me/guides/codex-integration/)
-
-OpenCodex 的配置文件默认是 `~/.opencodex/config.json`。其中的 `subagentModels` 是 Codex
-subagent 模型选择器使用的模型列表，例如：
-
-```json
-{
-  "subagentModels": [
-    "gpt-5.6-sol",
-    "codex02/gpt-5.6-sol",
-    "gpt-5.6-luna"
-  ]
-}
-```
-
-Codex Advisor 启动配置页面时会优先读取这个列表，并把它显示为可选择的 Advisor 模型。列表中的顺序
-只决定 OpenCodex/Codex 的展示优先级；Advisor 自己的调用顺序在本插件网页中单独配置。Advisor 只会
-使用列表中已经存在且当前可见的模型，不负责创建或注册 subagent 模型；实际可用模型还取决于 provider、
-catalog 和账号权限，详见上面的官方文档。
-
-如果没有安装或配置 OpenCodex，本插件会退回尝试 `codex debug models` 获取模型列表；但推荐使用
-OpenCodex，因为它可以更方便地添加、路由和切换不同 provider 的模型，例如
-`codex02/gpt-5.6-sol`。
+设置 `CODEX_HOME` 时，两个标准目录从该位置读取。Advisor 从模型目录提取可显示的模型 ID 和推理档位，
+供应商配置、API Key 和登录凭据由 Codex 或 CC Switch 管理。网页显示当前选择的目录来源和文件更新时间。
 
 ## 功能
 
 - 自动模式：由父模型在关键节点主动咨询 Advisor
 - 手动模式：只有用户明确要求 `$advisor ask` 时才咨询
 - 自定义 Advisor 模型优先级
-- 每个模型独立配置额外重试次数
+- 每个模型独立配置推理强度和额外重试次数
 - 当前模型失败后按优先级切换到下一个模型
-- 通过 `fork_context=true` 继承父任务的完整上下文
+- 自动识别当前会话的 V1 或 V2 子代理接口，也可显式指定
 - 只对带 `[CODEX_ADVISOR]` 标记的子代理启用最终 Advisor 角色提示
 - 防止 Advisor 把自己当成父执行模型，递归创建下一层 Advisor
 - 本机 localhost 配置网页
@@ -59,115 +35,71 @@ OpenCodex，因为它可以更方便地添加、路由和切换不同 provider �
 
 - 已安装带 subagent 能力的 Codex
 - Python 3.10 或更高版本
-- 推荐安装并配置 [OpenCodex](https://opencodex.me/)，以提供可用的 `subagentModels`
 
 ## 安装到 Codex
 
-下面的步骤使用 Codex 默认的 personal marketplace，适用于 macOS、Linux，以及通过 Git Bash 或 WSL
-运行的 Windows 环境。建议把插件放在 `~/plugins/codex-advisor`，因为 marketplace 中的本地路径按此
-位置配置。
+仓库带有本地 marketplace。Windows 可以用 PowerShell 和 Windows Python Launcher 安装及打开配置页。
 
-### 1. 克隆插件
+### 1. 从 GitHub 安装
+
+在 Codex Desktop 的「添加插件市场」中，将来源填为 `yyty947/codex-advisor`，Git 引用填 `main`，稀疏路径留空。
+添加市场后，按第 3 步安装插件。
+
+### 2. 从本地仓库安装
+
+```text
+git clone https://github.com/yyty947/codex-advisor.git codex-advisor
+cd codex-advisor
+```
+
+如果已经克隆过，在仓库目录运行：
 
 ```bash
-mkdir -p ~/plugins
-git clone https://github.com/pixelsama/codex-advisor.git ~/plugins/codex-advisor
+git pull --ff-only
 ```
 
-如果已经克隆过：
+仓库包含本地市场文件。在 Codex Desktop 的「添加插件市场」中，将来源填为仓库根目录的绝对路径，Git 引用和稀疏路径留空。
+也可以在仓库根目录运行 `codex plugin marketplace add .`。
+
+### 3. 启用并检查插件
+
+如果已安装旧版，请先在 Codex 的已安装插件中停用旧来源的 Advisor，例如 `codex-advisor@vibecoding-local`。
+保留旧版和设置文件方便回滚。每次只启用一个 Advisor，避免两版同时向对话加入不同的调用说明。
+
+在插件目录选择「Codex Advisor」来源并安装。使用终端时，先添加市场，再安装：
 
 ```bash
-git -C ~/plugins/codex-advisor pull --ff-only
+codex plugin marketplace add yyty947/codex-advisor --ref main
+codex plugin add codex-advisor@advisor-market
+codex plugin list
 ```
 
-### 2. 注册 personal marketplace
-
-推荐使用下面的脚本。它会创建 personal marketplace（如果尚不存在），只更新
-`codex-advisor` 条目，并保留已有插件：
-
-```bash
-python3 - <<'PY'
-import json
-from pathlib import Path
-
-marketplace = Path.home() / ".agents" / "plugins" / "marketplace.json"
-marketplace.parent.mkdir(parents=True, exist_ok=True)
-
-if marketplace.exists():
-    data = json.loads(marketplace.read_text(encoding="utf-8"))
-else:
-    data = {
-        "name": "personal",
-        "interface": {"displayName": "Personal"},
-        "plugins": [],
-    }
-
-data.setdefault("name", "personal")
-data.setdefault("interface", {"displayName": "Personal"})
-plugins = data.setdefault("plugins", [])
-plugins[:] = [item for item in plugins if item.get("name") != "codex-advisor"]
-plugins.append({
-    "name": "codex-advisor",
-    "source": {"source": "local", "path": "./plugins/codex-advisor"},
-    "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL",
-    },
-    "category": "Productivity",
-})
-marketplace.write_text(
-    json.dumps(data, ensure_ascii=False, indent=2) + "\n",
-    encoding="utf-8",
-)
-print(f"Updated {marketplace}")
-PY
-```
-
-也可以手动把下面的对象加入 `~/.agents/plugins/marketplace.json` 的 `plugins` 数组：
-
-```json
-{
-  "name": "codex-advisor",
-  "source": {"source": "local", "path": "./plugins/codex-advisor"},
-  "policy": {
-    "installation": "AVAILABLE",
-    "authentication": "ON_INSTALL"
-  },
-  "category": "Productivity"
-}
-```
-
-### 3. 安装并检查插件
-
-```bash
-codex plugin add codex-advisor@personal
-codex plugin list | grep codex-advisor
-```
-
-插件状态应显示为 `installed, enabled`。安装或更新后请新建一个 Codex 任务，以便加载当前插件版本。
+确认 `codex-advisor@advisor-market` 已启用，旧来源已停用。若 Codex 提示审核插件 Hook，请按界面审核后启用。
+安装或更新后请新建 Codex 对话以加载当前插件版本。
 
 ### 4. 打开配置页面
 
-```bash
-codex-advisor open
-```
+在 Codex 输入 `$advisor config`。也可以在仓库目录运行
+`py -3 -X utf8 scripts/advisorctl.py open`（Windows），或
+`python3 scripts/advisorctl.py open`（macOS/Linux）。
 
-页面会读取当前可见的 subagent 模型。你可以选择自动/手动模式、调整模型优先级、设置每个模型的重试
-次数、选择 reasoning effort，以及决定所有模型都失败后的行为。点击“保存配置”后，页面顶部会显示
-保存成功或失败的横幅。
+选择模型来源后，可以加入目录中的模型或手动填写模型 ID。点击「保存配置」后，下次发消息或手动咨询时读取新设置。
 
 ## 使用方式
 
 ### 开启和关闭
 
-```bash
-codex-advisor on
-codex-advisor off
-codex-advisor status
-codex-advisor models
+在此仓库的根目录运行，例如 Windows PowerShell：
+
+```powershell
+py -3 -X utf8 scripts/advisorctl.py on
+py -3 -X utf8 scripts/advisorctl.py off
+py -3 -X utf8 scripts/advisorctl.py status
+py -3 -X utf8 scripts/advisorctl.py models
 ```
 
-也可以直接运行 `codex-advisor` 或 `advisor`，默认打开配置网页。
+macOS/Linux 使用 `python3 scripts/advisorctl.py` 加同样的子命令。旧安装留下的 `codex-advisor` 命令可能仍指向旧版。
+在 Codex 里调用 `$advisor` 时，技能会直接运行自己安装目录中的脚本。
 
 ### 手动模式
 
@@ -205,12 +137,30 @@ $advisor ask 请审查当前方案的风险、遗漏和下一步
 2. codex02/gpt-5.6-sol    额外重试 1 次，最多 2 次
 ```
 
-### 完整上下文与递归保护
+每个模型还可以设置推理强度。选择「跟随 Advisor 默认」使用页面上的全局档位。选择「由 Codex 决定」
+会省略这次调用的显式档位，交给 Codex 的默认逻辑。旧配置中的模型、顺序、重试次数和全局档位可继续使用。
 
-Advisor 调用固定使用 `fork_context=true`，这样 Advisor 可以直接利用父会话中的代码、讨论和上下文，
-减少重新读取和复述的成本。为了避免 Advisor 把自己误认为父执行模型，调用消息会带有
-`[CODEX_ADVISOR]` 标记和最终叶子角色提示：带标记的子代理只做只读审阅，不调用
-`spawn_agent`、`wait_agent`、`close_agent`，也不会再次创建 Advisor。
+### 子代理接口和上下文
+
+默认选择「自动跟随当前会话」。Advisor 根据当前 `spawn_agent` 工具的声明识别 V1 或 V2。
+显式选择 V1 或 V2 时，当前会话必须提供匹配的工具。这项设置只作用于 Advisor，Codex 会话的接口由 Codex 决定。
+
+- **V2** 使用 `fork_turns="none"`，由主模型在调用时提供模型、适用的推理档位和完整任务消息，然后等待顾问结果。
+- **V1** 省略 `fork_context`，显式传入所选模型，等待结果后使用 V1 的 `close_agent`。
+
+两套接口都由主模型提供审阅问题、目标、约束、已有决定和相关证据或文件路径。
+以 `[CODEX_ADVISOR]` 开头的子代理只做只读审阅，也不会再派发顾问。
+插件只在能识别明文顾问任务的 V1 调用中使用 Guard。V2 的任务可能是密文，接口偏好和模型参数由主模型在调用前检查和填写。
+
+### 搭配 CC Switch
+
+- **直连**跟随当前会话实际提供的接口。Advisor 可选择当前连接和 Codex 模型目录能访问的模型。
+- **聚合跨供应商**在 CC Switch 保留默认开启的「聚合模式下子 agent 用经典工具」。Advisor 用自动或 V1，
+  并选模型目录公布的完整 ID（必要时带 `ccs-…/…` 前缀）。V2 的跨供应商任务传递还受上游兼容性影响。
+- **切换模式、经典工具或聚合目录**按 CC Switch 的提示彻底退出并重开 Codex Desktop，再新开对话验证。
+  如果全局配置显式强制 V2，它可能覆盖经典工具设置。
+
+详见 [CC Switch 聚合模式指南](https://github.com/farion1231/cc-switch/blob/main/docs/user-manual/zh/4-proxy/4.6-aggregation.md)。
 
 ## 配置文件
 
@@ -220,20 +170,13 @@ Advisor 配置默认保存于：
 ~/.codex/advisor/config.json
 ```
 
-OpenCodex 的 subagent 模型来源默认是：
-
-```text
-~/.opencodex/config.json
-```
-
-本插件也支持通过 `CODEX_ADVISOR_STATE_DIR` 指定 Advisor 状态目录，以及通过 `CODEX_CLI_PATH` 指定
-Codex CLI 路径。配置网页只监听 localhost，并使用短期 token 保护当前配置会话。
+本插件支持通过 `CODEX_ADVISOR_STATE_DIR` 指定状态目录。配置网页只监听 localhost，并使用短期 token 保护当前配置会话。
 
 ## 开发与验证
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 /path/to/codex/skills/.system/plugin-creator/scripts/validate_plugin.py .
+node --check assets/app.js
 ```
 
 插件源码分为三部分：`hooks/` 负责 Codex 运行时注入和子代理角色保护，`scripts/` 负责配置、模型发现、

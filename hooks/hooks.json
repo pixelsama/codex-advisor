@@ -1,5 +1,5 @@
 {
-  "description": "Inject and guard manually configured Codex Advisor subagent calls.",
+  "description": "Inject Codex Advisor instructions and guard classic V1 Advisor calls.",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -7,6 +7,7 @@
           {
             "type": "command",
             "command": "python3 \"${PLUGIN_ROOT}/hooks/advisor_context.py\"",
+            "commandWindows": "py -3 -X utf8 \"${PLUGIN_ROOT}/hooks/advisor_context.py\"",
             "timeout": 5,
             "statusMessage": "Loading Codex Advisor settings",
             "additionalContextLimit": 5000
@@ -16,13 +17,14 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Agent",
+        "matcher": "^Agent$",
         "hooks": [
           {
             "type": "command",
             "command": "python3 \"${PLUGIN_ROOT}/hooks/advisor_guard.py\"",
+            "commandWindows": "py -3 -X utf8 \"${PLUGIN_ROOT}/hooks/advisor_guard.py\"",
             "timeout": 5,
-            "statusMessage": "Checking Codex Advisor subagent call"
+            "statusMessage": "Checking classic Codex Advisor call"
           }
         ]
       }
