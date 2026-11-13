@@ -42,13 +42,13 @@ Codex Advisor 是一个运行在 Codex 全局环境中的可配置 Advisor 插�
 
 ### 1. 从 GitHub 安装
 
-在 Codex Desktop 的「添加插件市场」中，将来源填为 `yyty947/codex-advisor`，Git 引用填 `main`，稀疏路径留空。
+在 Codex Desktop 的「添加插件市场」中，将来源填为 `pixelsama/codex-advisor`，Git 引用填 `main`，稀疏路径留空。
 添加市场后，按第 3 步安装插件。
 
 ### 2. 从本地仓库安装
 
 ```text
-git clone https://github.com/yyty947/codex-advisor.git codex-advisor
+git clone https://github.com/pixelsama/codex-advisor.git codex-advisor
 cd codex-advisor
 ```
 
@@ -69,7 +69,7 @@ git pull --ff-only
 在插件目录选择「Codex Advisor」来源并安装。使用终端时，先添加市场，再安装：
 
 ```bash
-codex plugin marketplace add yyty947/codex-advisor --ref main
+codex plugin marketplace add pixelsama/codex-advisor --ref main
 codex plugin add codex-advisor@advisor-market
 codex plugin list
 ```
