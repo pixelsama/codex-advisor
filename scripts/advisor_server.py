@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from advisor_core import (
     ConfigError,
+    REASONING_EFFORTS,
     discover_subagent_models,
     load_config,
     save_config,
@@ -25,22 +26,30 @@ class AdvisorService:
         self,
         *,
         state_dir: Path,
-        discover: Callable[[], dict[str, Any]] = discover_subagent_models,
+        discover: Callable[..., dict[str, Any]] = discover_subagent_models,
     ) -> None:
         self.state_dir = state_dir
         self.discover = discover
 
     def bootstrap(self) -> dict[str, Any]:
-        discovery = self.discover()
-        models = discovery.get("models", [])
-        return {
-            "config": load_config(
+        config = load_config(state_dir=self.state_dir)
+        discovery = self.catalog(config["model_source"], config["catalog_path"])
+        if not (self.state_dir / "config.json").exists():
+            config = load_config(
                 state_dir=self.state_dir,
-                available_models=models,
-            ),
-            "models": models,
-            "modelSource": discovery.get("source", "unavailable"),
+                available_models=discovery["models"],
+            )
+        return {"config": config, "reasoningEfforts": REASONING_EFFORTS, **discovery}
+
+    def catalog(self, source: str, path: str = "") -> dict[str, Any]:
+        discovery = self.discover(source=source, catalog_path=path)
+        return {
+            "models": discovery.get("models", []),
+            "modelDetails": discovery.get("modelDetails", {}),
+            "modelSource": discovery.get("source", source),
             "modelSourcePath": discovery.get("path"),
+            "modelSourceUpdatedAt": discovery.get("updatedAt"),
+            "modelSourceError": discovery.get("error"),
         }
 
     def update_config(self, payload: Any) -> dict[str, Any]:
@@ -135,6 +144,17 @@ class AdvisorRequestHandler(BaseHTTPRequestHandler):
                 return
             try:
                 self._send_json(200, self.server.service.bootstrap())
+            except ConfigError as exc:
+                self._send_json(400, {"error": str(exc)})
+            return
+        if parsed.path == "/api/models":
+            if not self._require_api_auth():
+                return
+            query = parse_qs(parsed.query)
+            try:
+                self._send_json(200, self.server.service.catalog(
+                    query.get("source", ["codex"])[0], query.get("path", [""])[0]
+                ))
             except ConfigError as exc:
                 self._send_json(400, {"error": str(exc)})
             return

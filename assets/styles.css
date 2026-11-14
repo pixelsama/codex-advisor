@@ -181,20 +181,37 @@ h2 {
 
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 16px;
   margin-bottom: 18px;
 }
 
-.settings-grid label {
+.settings-grid label,
+.field {
   display: grid;
+  min-width: 0;
   gap: 8px;
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
 }
 
-select {
+.field[hidden] {
+  display: none;
+}
+
+.settings-hint {
+  grid-column: 1 / -1;
+}
+
+.settings-grid .hint {
+  margin: 0;
+  font-weight: 400;
+}
+
+select,
+.field input {
   width: 100%;
   min-height: 44px;
   padding: 0 12px;
@@ -246,6 +263,26 @@ select {
   gap: 10px;
 }
 
+.catalog-controls,
+.manual-model {
+  display: grid;
+  gap: 12px;
+}
+
+.catalog-controls {
+  margin-top: 12px;
+}
+
+.manual-model {
+  grid-template-columns: minmax(0, 1fr) minmax(105px, auto) auto;
+  align-items: end;
+  margin-top: 16px;
+}
+
+#model-source {
+  overflow-wrap: anywhere;
+}
+
 .model-row {
   min-height: 62px;
   gap: 10px;
@@ -262,6 +299,18 @@ select {
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 14px;
   font-weight: 700;
+}
+
+.model-effort {
+  flex: 0 1 auto;
+  gap: 3px;
+  font-size: 10px;
+}
+
+.model-effort select {
+  min-height: 32px;
+  padding: 0 6px;
+  font-size: 12px;
 }
 
 .unavailable {
@@ -432,5 +481,25 @@ button:disabled {
 
   .button-row {
     justify-content: flex-end;
+  }
+}
+
+@media (max-width: 640px), (min-width: 821px) and (max-width: 1050px) {
+  .selected-model {
+    flex-wrap: wrap;
+  }
+
+  .selected-model .model-name {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .manual-model {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .manual-model .field:first-child {
+    grid-column: 1 / -1;
   }
 }

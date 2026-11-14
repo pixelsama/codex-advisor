@@ -34,17 +34,15 @@ def set_enabled(
     enabled: bool,
     *,
     state_dir: Path | None = None,
-    discover: Callable[[], dict[str, Any]] = discover_subagent_models,
+    discover: Callable[..., dict[str, Any]] = discover_subagent_models,
 ) -> dict[str, Any]:
     target_state_dir = state_dir or state_dir_from_env()
-    discovery = discover()
-    available_models = discovery.get("models", [])
-    config = load_config(
-        state_dir=target_state_dir,
-        available_models=available_models,
-    )
+    config = load_config(state_dir=target_state_dir)
     if enabled and not config["models"]:
-        config["models"] = default_config(available_models)["models"]
+        discovery = discover(source=config["model_source"], catalog_path=config["catalog_path"])
+        config["models"] = default_config(discovery.get("models", []))["models"]
+        if not config["models"]:
+            raise ConfigError("请先在 Advisor 配置页添加至少一个模型，再开启 Advisor。")
     config["enabled"] = enabled
     return save_config(config, state_dir=target_state_dir)
 
@@ -52,18 +50,18 @@ def set_enabled(
 def status_payload(
     *,
     state_dir: Path | None = None,
-    discover: Callable[[], dict[str, Any]] = discover_subagent_models,
+    discover: Callable[..., dict[str, Any]] = discover_subagent_models,
 ) -> dict[str, Any]:
     target_state_dir = state_dir or state_dir_from_env()
-    discovery = discover()
+    payload = AdvisorService(state_dir=target_state_dir, discover=discover).bootstrap()
     return {
-        "config": load_config(
-            state_dir=target_state_dir,
-            available_models=discovery.get("models", []),
-        ),
-        "availableModels": discovery.get("models", []),
-        "modelSource": discovery.get("source", "unavailable"),
-        "modelSourcePath": discovery.get("path"),
+        "config": payload["config"],
+        "availableModels": payload["models"],
+        "modelDetails": payload["modelDetails"],
+        "modelSource": payload["modelSource"],
+        "modelSourcePath": payload["modelSourcePath"],
+        "modelSourceUpdatedAt": payload["modelSourceUpdatedAt"],
+        "modelSourceError": payload["modelSourceError"],
     }
 
 
@@ -201,9 +199,12 @@ def _print_status(payload: dict[str, Any]) -> None:
     config = payload["config"]
     print(f"Advisor: {'开启' if config['enabled'] else '关闭'}")
     print(f"模式: {config['mode']}")
+    print(f"子代理接口: {config['agent_protocol']}")
     print(f"模型来源: {payload['modelSource']}")
     if payload.get("modelSourcePath"):
         print(f"来源位置: {payload['modelSourcePath']}")
+    if payload.get("modelSourceError"):
+        print(payload["modelSourceError"])
     if config["models"]:
         print("优先级:")
         for index, item in enumerate(config["models"], start=1):
@@ -244,11 +245,14 @@ def main(argv: list[str] | None = None) -> int:
                 _print_status(payload)
             return 0
         if command == "models":
-            discovery = discover_subagent_models()
+            config = load_config(state_dir=state_dir)
+            discovery = discover_subagent_models(source=config["model_source"], catalog_path=config["catalog_path"])
             if args.json:
                 print(json.dumps(discovery, ensure_ascii=False, indent=2))
             else:
                 print(f"来源: {discovery['source']}")
+                if discovery.get("error"):
+                    print(discovery["error"])
                 for index, model in enumerate(discovery["models"], start=1):
                     print(f"{index}. {model}")
             return 0

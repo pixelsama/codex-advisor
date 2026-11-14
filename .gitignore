@@ -3,3 +3,29 @@ __pycache__/
 .DS_Store
 .pytest_cache/
 .coverage
+
+# Local Advisor state and model catalogs
+/advisor/config.json
+/config.json
+/config.toml
+/auth.json
+/models_cache.json
+/models.json
+/model_catalog.json
+/*-catalog.json
+/.env
+/.env.*
+!/.env.example
+*.log
+server-ready-*.json
+.config.json.*.tmp
+
+# Backups and temporary local verification files
+/Advisor备份-*/
+/backup-manifest.json
+/legacy-plugin/
+/.advisor-test-*/
+/.advisor-review-*/
+/.git-ignored-test-tools/
+/.playwright-cli/
+/output/playwright/

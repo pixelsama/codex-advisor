@@ -1,0 +1,20 @@
+{
+  "name": "advisor-market",
+  "interface": {
+    "displayName": "Codex Advisor"
+  },
+  "plugins": [
+    {
+      "name": "codex-advisor",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

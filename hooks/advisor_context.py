@@ -35,7 +35,7 @@ def main() -> int:
         payload = json.load(sys.stdin)
         output = build_context_hook_output(payload, load_config())
         if output is not None:
-            print(json.dumps(output, ensure_ascii=False))
+            print(json.dumps(output, ensure_ascii=True))
         return 0
     except (ConfigError, json.JSONDecodeError, OSError) as exc:
         print(
@@ -43,7 +43,7 @@ def main() -> int:
                 {
                     "systemMessage": f"Codex Advisor 配置未能加载：{exc}",
                 },
-                ensure_ascii=False,
+                ensure_ascii=True,
             )
         )
         return 0

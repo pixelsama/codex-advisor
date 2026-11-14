@@ -18,7 +18,7 @@
       <span id="save-banner-icon" class="save-banner-icon" aria-hidden="true">✓</span>
       <div class="save-banner-copy">
         <strong id="save-banner-title">配置已保存</strong>
-        <span id="save-banner-message">新任务会从下一次用户消息开始使用这份配置。</span>
+        <span id="save-banner-message">下次发消息或手动咨询时读取新配置。</span>
       </div>
       <button id="save-banner-close" class="save-banner-close" type="button" aria-label="关闭保存提示">×</button>
     </div>
@@ -28,11 +28,11 @@
           <p class="eyebrow">CODEX ADVISOR</p>
           <h1>给 Codex 配一个有优先级的战略顾问</h1>
           <p class="subtitle">
-            模型直接读取当前 subagent 列表。Advisor 失败时会按你设定的重试次数和顺序降级。
+            从 Codex 的本机目录选模型，也可以手动添加。顾问按优先级和重试设置依次尝试。
           </p>
         </div>
         <div class="hero-actions">
-          <button id="save" class="primary" type="button">保存配置</button>
+          <button id="save" class="primary" type="button" disabled>保存配置</button>
           <label class="switch-row">
             <input id="enabled" type="checkbox">
             <span class="switch" aria-hidden="true"></span>
@@ -49,14 +49,22 @@
             <option value="manual">手动：只在 $advisor ask 时咨询</option>
           </select>
         </label>
+        <div class="field">
+          <label>
+            <span>子代理接口</span>
+            <select id="agent-protocol" aria-describedby="protocol-hint">
+              <option value="auto">自动跟随当前会话</option>
+              <option value="v2">V2</option>
+              <option value="v1">V1（经典工具）</option>
+            </select>
+          </label>
+          <p id="protocol-hint" class="hint">
+            通过 CC Switch 使用第三方模型时，直连和聚合都须选择 V1。选择 V2 时，Advisor 子代理收不到任务。使用 Codex 官方登录时，推荐 V2。
+          </p>
+        </div>
         <label>
-          <span>Advisor 推理强度</span>
-          <select id="reasoning-effort">
-            <option value="medium">medium</option>
-            <option value="high">high</option>
-            <option value="xhigh">xhigh</option>
-            <option value="low">low</option>
-          </select>
+          <span>Advisor 默认推理强度</span>
+          <select id="reasoning-effort"></select>
         </label>
         <label>
           <span>全部模型失败后</span>
@@ -65,6 +73,7 @@
             <option value="block">暂停关键决策并询问我</option>
           </select>
         </label>
+        <p class="hint settings-hint">此选项只选择 Advisor 的调用方式。CC Switch 聚合跨供应商时，请在 CC Switch 启用经典工具。切换连接模式、聚合目录或经典工具后，彻底重开 Codex，再用新对话验证。</p>
       </section>
 
       <section class="columns">
@@ -86,12 +95,38 @@
           <div class="section-heading">
             <div>
               <p class="eyebrow">AVAILABLE</p>
-              <h2>当前 subagent 模型</h2>
+              <h2>模型目录</h2>
             </div>
             <button id="refresh" class="ghost" type="button">重新读取</button>
           </div>
-          <p id="model-source" class="hint">正在读取模型来源…</p>
+          <div class="catalog-controls">
+            <label class="field">
+              <span>模型来源</span>
+              <select id="catalog-source">
+                <option value="codex">Codex 本机缓存</option>
+                <option value="cc-switch">CC Switch 发布的目录</option>
+                <option value="catalog">自定义 Codex 模型目录</option>
+                <option value="manual">仅手动添加</option>
+              </select>
+            </label>
+            <label id="catalog-path-field" class="field" hidden>
+              <span>模型目录的绝对路径</span>
+              <input id="catalog-path" type="text" placeholder="粘贴模型目录文件路径" spellcheck="false">
+            </label>
+          </div>
+          <p id="model-source" class="hint" aria-live="polite">正在读取模型来源…</p>
           <div id="available-models" class="model-list"></div>
+          <form id="manual-model" class="manual-model">
+            <label class="field">
+              <span>手动填写模型 ID</span>
+              <input id="manual-model-id" type="text" required spellcheck="false" placeholder="粘贴 Codex 显示的完整 ID">
+            </label>
+            <label class="field">
+              <span>推理强度</span>
+              <select id="manual-effort"></select>
+            </label>
+            <button class="ghost" type="submit">添加</button>
+          </form>
         </article>
       </section>
 

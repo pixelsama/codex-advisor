@@ -27,7 +27,7 @@ class AdvisorCliTests(unittest.TestCase):
             saved = set_enabled(
                 True,
                 state_dir=state_dir,
-                discover=lambda: discovery,
+                discover=lambda **_: discovery,
             )
 
             self.assertTrue(saved["enabled"])
@@ -51,12 +51,12 @@ class AdvisorCliTests(unittest.TestCase):
             set_enabled(
                 True,
                 state_dir=state_dir,
-                discover=lambda: discovery,
+                discover=lambda **_: discovery,
             )
 
             payload = status_payload(
                 state_dir=state_dir,
-                discover=lambda: discovery,
+                discover=lambda **_: discovery,
             )
 
         self.assertTrue(payload["config"]["enabled"])

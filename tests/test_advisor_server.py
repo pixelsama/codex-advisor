@@ -24,7 +24,7 @@ class AdvisorServerTests(unittest.TestCase):
         }
         service = AdvisorService(
             state_dir=self.state_dir,
-            discover=lambda: self.discovery,
+            discover=lambda **_: self.discovery,
         )
         self.server = create_server(
             host="127.0.0.1",
@@ -80,11 +80,14 @@ class AdvisorServerTests(unittest.TestCase):
             "version": 1,
             "enabled": True,
             "mode": "auto",
+            "agent_protocol": "v2",
+            "model_source": "manual",
+            "catalog_path": "",
             "reasoning_effort": "xhigh",
             "on_exhausted": "block",
             "models": [
-                {"id": "codex02/gpt-5.6-sol", "retries": 3},
-                {"id": "gpt-5.6-sol", "retries": 0},
+                {"id": "ccs-custom/model-id", "retries": 3, "reasoning_effort": "max"},
+                {"id": "gpt-5.6-sol", "retries": 0, "reasoning_effort": None},
             ],
         }
 
@@ -106,6 +109,12 @@ class AdvisorServerTests(unittest.TestCase):
 
         self.assertEqual(raised.exception.code, 403)
         raised.exception.close()
+
+    def test_catalog_refresh_preserves_saved_configuration(self):
+        status, payload = self.request("/api/models?source=cc-switch")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["models"], self.discovery["models"])
+        self.assertFalse((self.state_dir / "config.json").exists())
 
 
 if __name__ == "__main__":
