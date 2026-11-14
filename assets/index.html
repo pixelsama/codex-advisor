@@ -49,14 +49,19 @@
             <option value="manual">手动：只在 $advisor ask 时咨询</option>
           </select>
         </label>
-        <label>
-          <span>子代理接口</span>
-          <select id="agent-protocol" aria-describedby="protocol-hint">
-            <option value="auto">自动跟随当前会话（推荐）</option>
-            <option value="v2">V2</option>
-            <option value="v1">V1（经典工具）</option>
-          </select>
-        </label>
+        <div class="field">
+          <label>
+            <span>子代理接口</span>
+            <select id="agent-protocol" aria-describedby="protocol-hint">
+              <option value="auto">自动跟随当前会话</option>
+              <option value="v2">V2</option>
+              <option value="v1">V1（经典工具）</option>
+            </select>
+          </label>
+          <p id="protocol-hint" class="hint">
+            通过 CC Switch 使用第三方模型时，直连和聚合都须选择 V1。选择 V2 时，Advisor 子代理收不到任务。使用 Codex 官方登录时，推荐 V2。
+          </p>
+        </div>
         <label>
           <span>Advisor 默认推理强度</span>
           <select id="reasoning-effort"></select>
@@ -68,7 +73,7 @@
             <option value="block">暂停关键决策并询问我</option>
           </select>
         </label>
-        <p id="protocol-hint" class="hint settings-hint">此选项只选择 Advisor 的调用方式。CC Switch 聚合跨供应商时，请在 CC Switch 启用经典工具。切换连接模式、聚合目录或经典工具后，彻底重开 Codex，再用新对话验证。</p>
+        <p class="hint settings-hint">此选项只选择 Advisor 的调用方式。CC Switch 聚合跨供应商时，请在 CC Switch 启用经典工具。切换连接模式、聚合目录或经典工具后，彻底重开 Codex，再用新对话验证。</p>
       </section>
 
       <section class="columns">
